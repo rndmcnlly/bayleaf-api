@@ -1,0 +1,6 @@
+# Copy this file to .dev.vars and fill in the values for local development
+# DO NOT commit .dev.vars to version control!
+
+OPENROUTER_PROVISIONING_KEY=sk-or-v1-your-provisioning-key-here
+OIDC_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+OIDC_CLIENT_SECRET=GOCSPX-your-client-secret-here

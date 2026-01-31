@@ -1,0 +1,19 @@
+{
+  "name": "bayleaf-api",
+  "version": "1.0.0",
+  "description": "BayLeaf API - Key provisioning and LLM inference proxy for UC Santa Cruz",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": ["cloudflare-workers", "openrouter", "ucsc", "bayleaf"],
+  "author": "UC Santa Cruz",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250124.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.101.0"
+  }
+}

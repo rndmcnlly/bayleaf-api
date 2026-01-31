@@ -1,0 +1,34 @@
+{
+  "name": "bayleaf-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-31",
+  "compatibility_flags": ["nodejs_compat"],
+  
+  // Observability - DISABLE THIS after deployment is working
+  // to avoid accidental data accumulation
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Production route (uncomment when ready to deploy)
+  // "routes": [
+  //   { "pattern": "api.bayleaf.chat", "custom_domain": true }
+  // ],
+
+  // Environment variables (set via wrangler secret or dashboard)
+  // These are placeholders - actual values should be set as secrets
+  "vars": {
+    "SPENDING_LIMIT_DOLLARS": "1.0",
+    "SPENDING_LIMIT_RESET": "daily",
+    "KEY_NAME_TEMPLATE": "BayLeaf API for $email",
+    "KEY_EXPIRY_DAYS": "30",
+    "ALLOWED_EMAIL_DOMAIN": "ucsc.edu",
+    "SYSTEM_PROMPT_PREFIX": "You are an AI assistant provided by UC Santa Cruz through the BayLeaf service."
+  }
+
+  // Secrets to configure via `wrangler secret put`:
+  // - OPENROUTER_PROVISIONING_KEY
+  // - OIDC_CLIENT_ID  
+  // - OIDC_CLIENT_SECRET
+}
