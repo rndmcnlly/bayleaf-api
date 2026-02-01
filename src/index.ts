@@ -461,6 +461,28 @@ function baseLayout(title: string, content: string): string {
       font: inherit;
       padding: 0;
     }
+    .copy-box {
+      display: inline-block;
+      background: #f4f4f4;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      font-family: monospace;
+      cursor: pointer;
+      position: relative;
+      margin-bottom: 0.25rem;
+      user-select: all;
+      transition: background 0.2s;
+    }
+    .copy-box:hover {
+      background: #e0eaff;
+    }
+    .copy-hint {
+      font-size: 0.85em;
+      color: #888;
+      margin-left: 0.75em;
+      opacity: 0.7;
+    }
     .copy-btn {
       position: absolute;
       top: 0.5rem;
@@ -577,6 +599,12 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
   const usageGuide = key ? `
     <div class="card">
       <h3>Quick Start</h3>
+      <p><strong>Endpoint URL:</strong></p>
+      <div class="copy-box" onclick="copyToClipboard(this)">
+        <code>https://api.bayleaf.chat/v1</code>
+        <span class="copy-hint">Click to copy</span>
+      </div>
+      <p style="margin-top: 1rem;"><strong>Example request:</strong></p>
       <pre><code>curl https://api.bayleaf.chat/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
@@ -593,6 +621,28 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
     <script>
       const KEY_HASH = '${keyHash}';
       const STORAGE_KEY = 'bayleaf-keys';
+      // Copy endpoint URL to clipboard
+      function copyToClipboard(el) {
+        const code = el.querySelector('code');
+        if (!code) return;
+        const text = code.textContent;
+        if (!navigator.clipboard) {
+          // fallback for older browsers
+          const range = document.createRange();
+          range.selectNodeContents(code);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          document.execCommand('copy');
+          sel.removeAllRanges();
+        } else {
+          navigator.clipboard.writeText(text);
+        }
+        el.querySelector('.copy-hint').textContent = 'Copied!';
+        setTimeout(() => {
+          el.querySelector('.copy-hint').textContent = 'Click to copy';
+        }, 1200);
+      }
       
       // localStorage helpers
       function getStoredKeys() {
