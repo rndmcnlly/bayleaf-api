@@ -577,7 +577,7 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "openai/gpt-4o-mini",
+    "model": "deepseek/deepseek-v3.2",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'</code></pre>
       <p>See <a href="https://openrouter.ai/models" target="_blank">available models</a> on OpenRouter.</p>
