@@ -468,6 +468,9 @@ function baseLayout(title: string, content: string): string {
       padding: 0.25rem 0.5rem;
       font-size: 0.8rem;
     }
+    .key-display .copy-btn:nth-of-type(2) {
+      right: 4rem;
+    }
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
     .stat { text-align: center; }
     .stat-value { font-size: 1.5rem; font-weight: bold; color: #003c6c; }
@@ -541,6 +544,7 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
       <div class="card" id="keyCard">
         <h3>Your API Key</h3>
         <p>Key ID: <code>${key.label}</code></p>
+        <div id="keyRecoverySlot" style="margin: 1rem 0;"></div>
         <p>Expires: ${expiresAt}</p>
         <div class="stats">
           <div class="stat">
@@ -584,8 +588,46 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
     </div>
   ` : '';
 
+  const keyHash = key?.hash || '';
   const scripts = `
     <script>
+      const KEY_HASH = '${keyHash}';
+      const STORAGE_KEY = 'bayleaf-keys';
+      
+      // localStorage helpers
+      function getStoredKeys() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch { return {}; }
+      }
+      
+      function saveKeyToStorage(hash, key) {
+        try {
+          const keys = getStoredKeys();
+          keys[hash] = key;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+          return true;
+        } catch (e) {
+          console.warn('Failed to save key to localStorage:', e);
+          return false;
+        }
+      }
+      
+      function getKeyFromStorage(hash) {
+        const keys = getStoredKeys();
+        return keys[hash] || null;
+      }
+      
+      function removeKeyFromStorage(hash) {
+        try {
+          const keys = getStoredKeys();
+          delete keys[hash];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+        } catch (e) {
+          console.warn('Failed to remove key from localStorage:', e);
+        }
+      }
+      
       function copyKey() {
         const input = document.getElementById('apiKey');
         input.type = 'text';
@@ -594,28 +636,59 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
         input.type = 'password';
         alert('Copied to clipboard!');
       }
+      
+      function toggleKeyVisibility() {
+        const input = document.getElementById('apiKey');
+        const btn = document.getElementById('toggleBtn');
+        if (input.type === 'password') {
+          input.type = 'text';
+          btn.textContent = 'Hide';
+        } else {
+          input.type = 'password';
+          btn.textContent = 'Show';
+        }
+      }
+      
       async function createKey() {
         const res = await fetch('/key', { method: 'POST' });
         const data = await res.json();
-        if (res.ok && data.key) {
-          // Store key temporarily, reload to get full view from OR
+        if (res.ok && data.key && data.hash) {
+          // Save key to localStorage for future recovery
+          const saved = saveKeyToStorage(data.hash, data.key);
+          // Store key temporarily for display, reload to get full view from OR
           sessionStorage.setItem('newKey', data.key);
+          sessionStorage.setItem('newKeyHash', data.hash);
+          sessionStorage.setItem('newKeySaved', saved ? 'true' : 'false');
           location.reload();
         } else {
           alert(data.error || 'Failed to create key');
         }
       }
+      
+      function forgetKey() {
+        if (!confirm('Forget this key from your browser?\\n\\nThe key will still work, but you won\\'t be able to see it again on this device.')) return;
+        removeKeyFromStorage(KEY_HASH);
+        location.reload();
+      }
+      
       // Check for newly created key on page load
       (function() {
         const newKey = sessionStorage.getItem('newKey');
+        const newKeyHash = sessionStorage.getItem('newKeyHash');
+        const newKeySaved = sessionStorage.getItem('newKeySaved');
         if (newKey) {
           sessionStorage.removeItem('newKey');
+          sessionStorage.removeItem('newKeyHash');
+          sessionStorage.removeItem('newKeySaved');
           const keyCard = document.getElementById('keyCard');
           if (keyCard) {
+            const savedNote = newKeySaved === 'true' 
+              ? '<p style="color: #155724; font-size: 0.9em;">This key has been saved in your browser for future recovery.</p>'
+              : '<p style="color: #856404; font-size: 0.9em;">Unable to save key in browser - make sure to copy it now.</p>';
             keyCard.insertAdjacentHTML('afterbegin', \`
               <div class="success" style="margin-bottom: 1rem;">
                 <strong>Your new API key has been created!</strong>
-                <p>Copy it now - you won't be able to see it again.</p>
+                \${savedNote}
               </div>
               <div class="key-display" style="margin-bottom: 1rem;">
                 <input type="password" value="\${newKey}" id="apiKey" readonly>
@@ -623,13 +696,42 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
               </div>
             \`);
           }
+        } else if (KEY_HASH) {
+          // Check if we have the key stored in localStorage
+          const storedKey = getKeyFromStorage(KEY_HASH);
+          const keyCard = document.getElementById('keyCard');
+          const keyRecoverySlot = document.getElementById('keyRecoverySlot');
+          if (storedKey && keyRecoverySlot) {
+            keyRecoverySlot.innerHTML = \`
+              <div class="key-display" style="margin-bottom: 0.5rem;">
+                <input type="password" value="\${storedKey}" id="apiKey" readonly>
+                <button class="btn copy-btn" onclick="copyKey()">Copy</button>
+                <button class="btn copy-btn" id="toggleBtn" onclick="toggleKeyVisibility()" style="right: 4rem;">Show</button>
+              </div>
+              <p style="font-size: 0.85em; color: #666; margin: 0.5rem 0 0 0;">
+                Saved in this browser · <a href="#" onclick="forgetKey(); return false;">Forget</a>
+              </p>
+            \`;
+          } else if (keyRecoverySlot) {
+            keyRecoverySlot.innerHTML = \`
+              <p style="font-size: 0.9em; color: #666; margin: 0;">
+                Full key not available (created on a different device or browser)
+              </p>
+            \`;
+          }
         }
       })();
+      
       async function revokeKey() {
         if (!confirm('Are you sure? You will need to create a new key.')) return;
         const res = await fetch('/key', { method: 'DELETE' });
-        if (res.ok) location.reload();
-        else alert('Failed to revoke key');
+        if (res.ok) {
+          // Clear from localStorage too
+          removeKeyFromStorage(KEY_HASH);
+          location.reload();
+        } else {
+          alert('Failed to revoke key');
+        }
       }
     </script>
   `;
@@ -847,7 +949,7 @@ async function handleCreateKey(request: Request, env: Env): Promise<Response> {
     return json({ error: 'Failed to create key' }, 500);
   }
   
-  return json({ success: true, key: newKeyData.key });
+  return json({ success: true, key: newKeyData.key, hash: newKeyData.hash });
 }
 
 /**
