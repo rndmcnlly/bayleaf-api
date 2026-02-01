@@ -15,7 +15,7 @@ API key provisioning and LLM inference proxy for UC Santa Cruz, part of the [Bay
 This is a stateless Cloudflare Worker that:
 1. Authenticates users via Google OIDC (restricted to `@ucsc.edu`)
 2. Uses the OpenRouter Provisioning API to manage per-user API keys
-3. Proxies `/api/v1/*` requests to OpenRouter, injecting a configurable system prompt prefix
+3. Proxies `/v1/*` requests to OpenRouter, injecting a configurable system prompt prefix
 
 No database required - all state is managed via OpenRouter's API (keys are identified by a name template including the user's authenticated email address).
 
@@ -93,7 +93,7 @@ Campus Pass allows users on the UC Santa Cruz campus network to access the infer
 
 ### How it works
 
-1. When a request arrives at `/api/v1/*` with no API key (or `Bearer campus`), the system checks the client IP
+1. When a request arrives at `/v1/*` with no API key (or `Bearer campus`), the system checks the client IP
 2. If the IP matches a configured campus CIDR range, the request is proxied using a shared pool key
 3. An additional system prompt prefix is injected to inform the model about the shared access context
 
@@ -120,7 +120,7 @@ On-campus users can access the API without any authentication:
 
 ```bash
 # No Authorization header needed on campus
-curl https://api.bayleaf.chat/api/v1/chat/completions \
+curl https://api.bayleaf.chat/v1/chat/completions \\
   -H "Content-Type: application/json" \
   -d '{"model": "deepseek/deepseek-v3.2", "messages": [{"role": "user", "content": "Hello!"}]}'
 
@@ -152,10 +152,10 @@ Off-campus users will receive a 401 error directing them to get a personal key a
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/v1/chat/completions` | Chat completions (system prompt injected) |
-| `/api/v1/completions` | Text completions |
-| `/api/v1/models` | List available models |
-| `/api/v1/*` | All other OpenRouter endpoints |
+| `/v1/chat/completions` | Chat completions (system prompt injected) |
+| `/v1/completions` | Text completions |
+| `/v1/models` | List available models |
+| `/v1/*` | All other OpenRouter endpoints |
 
 ## License
 

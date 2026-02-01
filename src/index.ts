@@ -515,7 +515,7 @@ function landingPage(showCampusPass: boolean): string {
       <h3>Campus Pass Available</h3>
       <p>You're on the UCSC network! You can use the API right now without signing in.</p>
       <p>Just point any OpenAI-compatible client at:</p>
-      <pre><code>https://api.bayleaf.chat/api/v1</code></pre>
+      <pre><code>https://api.bayleaf.chat/v1</code></pre>
       <p style="margin-bottom: 0;">No API key needed, or use <code>campus</code> as your key.</p>
     </div>
   ` : '';
@@ -577,7 +577,7 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
   const usageGuide = key ? `
     <div class="card">
       <h3>Quick Start</h3>
-      <pre><code>curl https://api.bayleaf.chat/api/v1/chat/completions \\
+      <pre><code>curl https://api.bayleaf.chat/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -977,12 +977,12 @@ async function handleDeleteKey(request: Request, env: Env): Promise<Response> {
 }
 
 /**
- * /api/v1/* - Proxy to OpenRouter with system prompt injection
+ * /v1/* - Proxy to OpenRouter with system prompt injection
  * Supports Campus Pass: on-campus users can access without a personal API key
  */
 async function handleApiProxy(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const path = url.pathname.replace('/api/v1', '');
+  const path = url.pathname.replace('/v1', '');
   
   // Build the OpenRouter URL
   const openRouterUrl = `${OPENROUTER_API}${path}${url.search}`;
@@ -1106,8 +1106,21 @@ export default {
     }
     
     try {
-      // API proxy routes
+      // Redirect old /api/v1/* paths to /v1/* for backwards compatibility
       if (path.startsWith('/api/v1/')) {
+        const newPath = path.replace('/api/v1', '/v1');
+        const newUrl = new URL(newPath + url.search, url.origin);
+        return new Response(null, {
+          status: 301,
+          headers: {
+            'Location': newUrl.toString(),
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
+
+      // API proxy routes
+      if (path.startsWith('/v1/')) {
         return handleApiProxy(request, env);
       }
       
