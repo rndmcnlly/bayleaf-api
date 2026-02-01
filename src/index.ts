@@ -22,10 +22,15 @@ interface Env {
   ALLOWED_EMAIL_DOMAIN: string;
   SYSTEM_PROMPT_PREFIX: string;
   
+  // Campus Pass configuration
+  CAMPUS_IP_RANGES: string;        // Comma-separated CIDR ranges (e.g., "128.114.0.0/16,169.233.0.0/16")
+  CAMPUS_SYSTEM_PREFIX: string;    // Additional system prompt prefix for campus mode
+  
   // Secrets (set via wrangler secret put)
   OPENROUTER_PROVISIONING_KEY: string;
   OIDC_CLIENT_ID: string;
   OIDC_CLIENT_SECRET: string;
+  CAMPUS_POOL_KEY: string;         // Shared OpenRouter key for campus access
 }
 
 interface Session {
@@ -70,6 +75,115 @@ const OPENROUTER_API = 'https://openrouter.ai/api/v1';
 
 const SESSION_COOKIE = 'bayleaf_session';
 const SESSION_DURATION_HOURS = 24;
+
+// =============================================================================
+// IP Range Utilities (Campus Pass)
+// =============================================================================
+
+/**
+ * Convert an IPv4 address to a BigInt
+ */
+function ipv4ToBigInt(ip: string): bigint | null {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  
+  let result = 0n;
+  for (const part of parts) {
+    const num = parseInt(part, 10);
+    if (isNaN(num) || num < 0 || num > 255) return null;
+    result = (result << 8n) | BigInt(num);
+  }
+  return result;
+}
+
+/**
+ * Convert an IPv6 address to a BigInt
+ * Handles full and compressed formats (e.g., 2607:F5F0::1)
+ */
+function ipv6ToBigInt(ip: string): bigint | null {
+  // Expand :: notation
+  let parts = ip.split(':');
+  
+  const doubleColonIndex = ip.indexOf('::');
+  if (doubleColonIndex !== -1) {
+    const before = ip.slice(0, doubleColonIndex).split(':').filter(p => p !== '');
+    const after = ip.slice(doubleColonIndex + 2).split(':').filter(p => p !== '');
+    const missing = 8 - before.length - after.length;
+    parts = [...before, ...Array(missing).fill('0'), ...after];
+  }
+  
+  if (parts.length !== 8) return null;
+  
+  let result = 0n;
+  for (const part of parts) {
+    const num = parseInt(part || '0', 16);
+    if (isNaN(num) || num < 0 || num > 0xFFFF) return null;
+    result = (result << 16n) | BigInt(num);
+  }
+  return result;
+}
+
+/**
+ * Check if an IP address is within a CIDR range
+ * Supports both IPv4 and IPv6
+ */
+function isIPInCIDR(ip: string, cidr: string): boolean {
+  const [rangeIP, prefixLenStr] = cidr.split('/');
+  const prefixLen = parseInt(prefixLenStr, 10);
+  
+  // Determine IP version
+  const isV6 = ip.includes(':');
+  const isRangeV6 = rangeIP.includes(':');
+  
+  // Must be same IP version
+  if (isV6 !== isRangeV6) return false;
+  
+  if (isV6) {
+    const ipVal = ipv6ToBigInt(ip);
+    const rangeVal = ipv6ToBigInt(rangeIP);
+    if (ipVal === null || rangeVal === null) return false;
+    if (isNaN(prefixLen) || prefixLen < 0 || prefixLen > 128) return false;
+    
+    const mask = prefixLen === 0 ? 0n : (~0n << BigInt(128 - prefixLen)) & ((1n << 128n) - 1n);
+    return (ipVal & mask) === (rangeVal & mask);
+  } else {
+    const ipVal = ipv4ToBigInt(ip);
+    const rangeVal = ipv4ToBigInt(rangeIP);
+    if (ipVal === null || rangeVal === null) return false;
+    if (isNaN(prefixLen) || prefixLen < 0 || prefixLen > 32) return false;
+    
+    const mask = prefixLen === 0 ? 0n : (~0n << BigInt(32 - prefixLen)) & 0xFFFFFFFFn;
+    return (ipVal & mask) === (rangeVal & mask);
+  }
+}
+
+/**
+ * Check if an IP address is on campus (matches any configured CIDR range)
+ */
+function isOnCampus(ip: string, rangesConfig: string): boolean {
+  if (!rangesConfig || !ip) return false;
+  
+  const ranges = rangesConfig.split(',').map(r => r.trim()).filter(r => r);
+  return ranges.some(range => isIPInCIDR(ip, range));
+}
+
+/**
+ * Get client IP from request headers
+ * CF-Connecting-IP is set by Cloudflare; falls back for local dev
+ */
+function getClientIP(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') 
+    || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
+    || '127.0.0.1';
+}
+
+/**
+ * Check if request qualifies for Campus Pass
+ */
+function isCampusPassEligible(request: Request, env: Env): boolean {
+  if (!env.CAMPUS_IP_RANGES || !env.CAMPUS_POOL_KEY) return false;
+  return isOnCampus(getClientIP(request), env.CAMPUS_IP_RANGES);
+}
 
 // =============================================================================
 // Utility Functions
@@ -392,13 +506,24 @@ function baseLayout(title: string, content: string): string {
 </html>`;
 }
 
-function landingPage(): string {
+function landingPage(showCampusPass: boolean): string {
+  const campusPassSection = showCampusPass ? `
+    <div class="card" style="background: #e8f4e8; border-color: #28a745;">
+      <h3>Campus Pass Available</h3>
+      <p>You're on the UCSC network! You can use the API right now without signing in.</p>
+      <p>Just point any OpenAI-compatible client at:</p>
+      <pre><code>https://api.bayleaf.chat/api/v1</code></pre>
+      <p style="margin-bottom: 0;">No API key needed, or use <code>campus</code> as your key.</p>
+    </div>
+  ` : '';
+
   return baseLayout('Welcome', `
     <div class="card">
       <h2>API Access for UCSC</h2>
       <p>Free LLM inference for UC Santa Cruz students, faculty, and staff.</p>
       <p><a href="/login" class="btn">Sign in with UCSC Google</a></p>
     </div>
+    ${campusPassSection}
   `);
 }
 
@@ -539,7 +664,8 @@ async function handleLanding(request: Request, env: Env): Promise<Response> {
   if (session) {
     return redirect('/dashboard');
   }
-  return html(landingPage());
+  
+  return html(landingPage(isCampusPassEligible(request, env)));
 }
 
 /**
@@ -750,6 +876,7 @@ async function handleDeleteKey(request: Request, env: Env): Promise<Response> {
 
 /**
  * /api/v1/* - Proxy to OpenRouter with system prompt injection
+ * Supports Campus Pass: on-campus users can access without a personal API key
  */
 async function handleApiProxy(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -762,24 +889,50 @@ async function handleApiProxy(request: Request, env: Env): Promise<Response> {
   const headers = new Headers(request.headers);
   headers.delete('host');
   
-  // For chat completions, inject system prompt prefix
+  // Check for Campus Pass mode
+  const authHeader = request.headers.get('Authorization');
+  const providedKey = authHeader?.replace(/^Bearer\s+/i, '').trim();
+  
+  let isCampusMode = false;
+  
+  // If no key, empty key, or "campus" token, check for campus access
+  if (!providedKey || providedKey === '' || providedKey.toLowerCase() === 'campus') {
+    if (isCampusPassEligible(request, env)) {
+      isCampusMode = true;
+      headers.set('Authorization', `Bearer ${env.CAMPUS_POOL_KEY}`);
+    } else {
+      // Not on campus or Campus Pass not configured
+      return json({
+        error: 'Unauthorized',
+        message: 'API key required. On-campus users can omit the key or use "campus". Visit https://api.bayleaf.chat/ for a free personal key.',
+      }, 401);
+    }
+  }
+  
+  // For chat completions, inject system prompt prefix(es)
   if (path === '/chat/completions' && request.method === 'POST') {
     try {
       const body = await request.json() as { messages?: Array<{ role: string; content: string }> };
       
       if (body.messages && Array.isArray(body.messages)) {
+        // Build the full system prefix
+        let systemPrefix = env.SYSTEM_PROMPT_PREFIX;
+        if (isCampusMode && env.CAMPUS_SYSTEM_PREFIX) {
+          systemPrefix += '\n\n' + env.CAMPUS_SYSTEM_PREFIX;
+        }
+        
         // Find existing system message or create one
         const systemIndex = body.messages.findIndex(m => m.role === 'system');
         
         if (systemIndex >= 0) {
           // Prepend to existing system message
           body.messages[systemIndex].content = 
-            env.SYSTEM_PROMPT_PREFIX + '\n\n' + body.messages[systemIndex].content;
+            systemPrefix + '\n\n' + body.messages[systemIndex].content;
         } else {
           // Insert system message at the beginning
           body.messages.unshift({
             role: 'system',
-            content: env.SYSTEM_PROMPT_PREFIX,
+            content: systemPrefix,
           });
         }
       }

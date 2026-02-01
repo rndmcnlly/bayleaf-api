@@ -8,6 +8,7 @@ API key provisioning and LLM inference proxy for UC Santa Cruz, part of the [Bay
 - **API Key Provisioning**: Automatic OpenRouter key management (one key per user)
 - **Inference Proxy**: OpenAI-compatible endpoint with campus-specific system prompt injection
 - **Self-Service Dashboard**: Create, view (statistics), and revoke API keys
+- **Campus Pass**: On-campus users can access the API without authentication
 
 ## Architecture
 
@@ -74,6 +75,8 @@ No database required - all state is managed via OpenRouter's API (keys are ident
 | `KEY_EXPIRY_DAYS` | Days until keys expire | `30` |
 | `ALLOWED_EMAIL_DOMAIN` | Restrict to this email domain | `ucsc.edu` |
 | `SYSTEM_PROMPT_PREFIX` | Prefix injected into all chat requests | `You are an AI assistant...` |
+| `CAMPUS_IP_RANGES` | CIDR ranges for Campus Pass (comma-separated, empty = disabled) | `128.114.0.0/16,169.233.0.0/16` |
+| `CAMPUS_SYSTEM_PREFIX` | Additional system prompt prefix for Campus Pass users | `Note: This user is using shared access...` |
 
 ### Secrets
 
@@ -82,6 +85,53 @@ No database required - all state is managed via OpenRouter's API (keys are ident
 | `OPENROUTER_PROVISIONING_KEY` | OpenRouter provisioning API key |
 | `OIDC_CLIENT_ID` | Google OAuth client ID |
 | `OIDC_CLIENT_SECRET` | Google OAuth client secret |
+| `CAMPUS_POOL_KEY` | Shared OpenRouter key for Campus Pass (optional) |
+
+## Campus Pass
+
+Campus Pass allows users on the UC Santa Cruz campus network to access the inference proxy without signing in or creating a personal API key.
+
+### How it works
+
+1. When a request arrives at `/api/v1/*` with no API key (or `Bearer campus`), the system checks the client IP
+2. If the IP matches a configured campus CIDR range, the request is proxied using a shared pool key
+3. An additional system prompt prefix is injected to inform the model about the shared access context
+
+### Configuration
+
+1. Pre-provision a shared OpenRouter key (e.g., with higher daily limits) and add it as a secret:
+   ```bash
+   wrangler secret put CAMPUS_POOL_KEY
+   ```
+
+2. Set the campus IP ranges in `wrangler.jsonc`:
+   ```jsonc
+   "CAMPUS_IP_RANGES": "128.114.0.0/16,169.233.0.0/16,192.35.220.0/24,192.35.223.0/24,2607:F5F0::/32"
+   ```
+
+3. Optionally customize the campus system prompt prefix:
+   ```jsonc
+   "CAMPUS_SYSTEM_PREFIX": "Note: This user is accessing via shared on-campus access..."
+   ```
+
+### Usage
+
+On-campus users can access the API without any authentication:
+
+```bash
+# No Authorization header needed on campus
+curl https://api.bayleaf.chat/api/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": "Hello!"}]}'
+
+# Or explicitly use "campus" as the key
+curl https://api.bayleaf.chat/api/v1/chat/completions \
+  -H "Authorization: Bearer campus" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+Off-campus users will receive a 401 error directing them to get a personal key at https://api.bayleaf.chat/
 
 ## API Endpoints
 

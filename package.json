@@ -8,12 +8,17 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail"
   },
-  "keywords": ["cloudflare-workers", "openrouter", "ucsc", "bayleaf"],
+  "keywords": [
+    "cloudflare-workers",
+    "openrouter",
+    "ucsc",
+    "bayleaf"
+  ],
   "author": "UC Santa Cruz",
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250124.0",
     "typescript": "^5.7.0",
-    "wrangler": "^3.101.0"
+    "wrangler": "^4.61.1"
   }
 }

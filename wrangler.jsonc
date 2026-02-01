@@ -24,11 +24,17 @@
     "KEY_NAME_TEMPLATE": "BayLeaf API for $email",
     "KEY_EXPIRY_DAYS": "30",
     "ALLOWED_EMAIL_DOMAIN": "ucsc.edu",
-    "SYSTEM_PROMPT_PREFIX": "You are an AI assistant provided by UC Santa Cruz through the BayLeaf service."
+    "SYSTEM_PROMPT_PREFIX": "You are an AI assistant provided by UC Santa Cruz through the BayLeaf service.",
+    
+    // Campus Pass: allow on-campus users to access without personal API keys
+    // Set CAMPUS_IP_RANGES to enable (empty string = disabled)
+    "CAMPUS_IP_RANGES": "128.114.0.0/16,169.233.0.0/16,192.35.220.0/24,192.35.223.0/24,2607:F5F0::/32,127.0.0.1/32,::1/128",
+    "CAMPUS_SYSTEM_PREFIX": "Note: This user is accessing the API via shared on-campus access. They can provision a personal API key at no cost by visiting https://api.bayleaf.chat/"
   }
 
   // Secrets to configure via `wrangler secret put`:
   // - OPENROUTER_PROVISIONING_KEY
   // - OIDC_CLIENT_ID  
   // - OIDC_CLIENT_SECRET
+  // - CAMPUS_POOL_KEY (for Campus Pass feature)
 }
