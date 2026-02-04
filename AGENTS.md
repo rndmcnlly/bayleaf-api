@@ -32,29 +32,7 @@ wrangler secret put CAMPUS_POOL_KEY
 
 No test framework configured. Use manual testing via `npm run dev` and TypeScript strict mode (`npx tsc --noEmit`).
 
-## Version Control
 
-This repo uses **jj (Jujutsu)** with Git as the backend. The developer is learning jj and prefers using it over raw git commands.
-
-Key jj concepts:
-- **Working copy is a commit** - Changes are automatically tracked; no staging area
-- **Bookmarks** - jj's equivalent of git branches (e.g., `main` bookmark tracks `main@origin`)
-- **Revisions** - `@` is working copy, `@-` is parent, `main` is a bookmark
-
-Common commands:
-```bash
-jj status             # Show working copy changes
-jj log                # View commit graph
-jj diff               # Show uncommitted changes
-jj commit -m "msg"    # Commit and start new empty change
-jj describe -m "msg"  # Edit current commit's message
-jj squash             # Fold working copy into parent
-jj new                # Start new change on top of current
-jj bookmark list      # Show bookmarks and their positions
-jj git push           # Push to GitHub
-```
-
-When committing, prefer jj commands. Explain jj concepts when relevant to help the developer learn.
 
 ## Code Style Guidelines
 
