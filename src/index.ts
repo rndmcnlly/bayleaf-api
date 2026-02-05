@@ -532,14 +532,20 @@ function baseLayout(title: string, content: string): string {
 </html>`;
 }
 
-function landingPage(showCampusPass: boolean): string {
+function recommendedModelHint(model: string): string {
+  const modelUrl = `https://openrouter.ai/${model}`;
+  return `<p>If you aren't sure which model to use, we recommend <code><a href="${modelUrl}" target="_blank">${model}</a></code> as a reasonable default.</p>`;
+}
+
+function landingPage(showCampusPass: boolean, recommendedModel: string): string {
   const campusPassSection = showCampusPass ? `
     <div class="card" style="background: #e8f4e8; border-color: #28a745;">
       <h3>Campus Pass Available</h3>
       <p>You're on the UCSC network! You can use the API right now without signing in.</p>
       <p>Just point any OpenAI-compatible client at:</p>
       <pre><code>https://api.bayleaf.chat/v1</code></pre>
-      <p style="margin-bottom: 0;">No API key needed, or use <code>campus</code> as your key.</p>
+      <p>No API key needed, or use <code>campus</code> as your key.</p>
+      ${recommendedModelHint(recommendedModel)}
     </div>
   ` : '';
 
@@ -613,7 +619,7 @@ function dashboardPage(session: Session, key: OpenRouterKey | null, recommendedM
     "model": "${recommendedModel}",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'</code></pre>
-      <p>See <a href="https://openrouter.ai/models" target="_blank">available models</a> on OpenRouter.</p>
+      ${recommendedModelHint(recommendedModel)}
     </div>
   ` : '';
 
@@ -818,7 +824,7 @@ async function handleLanding(request: Request, env: Env): Promise<Response> {
     return redirect('/dashboard');
   }
   
-  return html(landingPage(isCampusPassEligible(request, env)));
+  return html(landingPage(isCampusPassEligible(request, env), env.RECOMMENDED_MODEL));
 }
 
 /**
