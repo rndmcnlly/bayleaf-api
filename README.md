@@ -122,13 +122,13 @@ On-campus users can access the API without any authentication:
 # No Authorization header needed on campus
 curl https://api.bayleaf.chat/v1/chat/completions \\
   -H "Content-Type: application/json" \
-  -d '{"model": "deepseek/deepseek-v3.2", "messages": [{"role": "user", "content": "Hello!"}]}'
+  -d '{"model": "z-ai/glm-4.7", "messages": [{"role": "user", "content": "Hello!"}]}'
 
 # Or explicitly use "campus" as the key
 curl https://api.bayleaf.chat/api/v1/chat/completions \
   -H "Authorization: Bearer campus" \
   -H "Content-Type: application/json" \
-  -d '{"model": "deepseek/deepseek-v3.2", "messages": [{"role": "user", "content": "Hello!"}]}'
+  -d '{"model": "z-ai/glm-4.7", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
 Off-campus users will receive a 401 error directing them to get a personal key at https://api.bayleaf.chat/

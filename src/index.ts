@@ -21,6 +21,7 @@ interface Env {
   KEY_EXPIRY_DAYS: string;
   ALLOWED_EMAIL_DOMAIN: string;
   SYSTEM_PROMPT_PREFIX: string;
+  RECOMMENDED_MODEL: string;       // Model slug shown in dashboard examples (e.g., "z-ai/glm-4.7")
   
   // Campus Pass configuration
   CAMPUS_IP_RANGES: string;        // Comma-separated CIDR ranges (e.g., "128.114.0.0/16,169.233.0.0/16")
@@ -552,7 +553,7 @@ function landingPage(showCampusPass: boolean): string {
   `);
 }
 
-function dashboardPage(session: Session, key: OpenRouterKey | null): string {
+function dashboardPage(session: Session, key: OpenRouterKey | null, recommendedModel: string): string {
   const greeting = `Welcome, ${session.name || session.email}`;
   
   let keySection: string;
@@ -609,7 +610,7 @@ function dashboardPage(session: Session, key: OpenRouterKey | null): string {
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "deepseek/deepseek-v3.2",
+    "model": "${recommendedModel}",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'</code></pre>
       <p>See <a href="https://openrouter.ai/models" target="_blank">available models</a> on OpenRouter.</p>
@@ -943,7 +944,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
   const keyName = getKeyName(session.email, env.KEY_NAME_TEMPLATE);
   const key = await findKeyByName(keyName, env);
   
-  return html(dashboardPage(session, key));
+  return html(dashboardPage(session, key, env.RECOMMENDED_MODEL));
 }
 
 /**
