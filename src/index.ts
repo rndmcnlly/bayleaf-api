@@ -21,7 +21,7 @@ interface Env {
   KEY_EXPIRY_DAYS: string;
   ALLOWED_EMAIL_DOMAIN: string;
   SYSTEM_PROMPT_PREFIX: string;
-  RECOMMENDED_MODEL: string;       // Model slug shown in dashboard examples (e.g., "z-ai/glm-4.7")
+  RECOMMENDED_MODEL: string;       // Model slug shown in dashboard examples
   
   // Campus Pass configuration
   CAMPUS_IP_RANGES: string;        // Comma-separated CIDR ranges (e.g., "128.114.0.0/16,169.233.0.0/16")

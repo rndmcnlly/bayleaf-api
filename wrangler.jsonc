@@ -27,7 +27,7 @@
     "SYSTEM_PROMPT_PREFIX": "You are accessing the BayLeaf API (https://api.bayleaf.chat/),  UC Santa Cruz's locally-operated AI service. Help users develop capability they can carry forward—into their own work and into collaboration with others. Make reasoning visible. Teach what generalizes. Conversations are private and never used for training.",
     
     // Campus Pass: allow on-campus users to access without personal API keys
-    "RECOMMENDED_MODEL": "z-ai/glm-4.7",
+    "RECOMMENDED_MODEL": "z-ai/glm-5",
     
     // Campus Pass: allow on-campus users to access without personal API keys
     // Set CAMPUS_IP_RANGES to enable (empty string = disabled)
