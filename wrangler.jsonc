@@ -11,10 +11,9 @@
     "head_sampling_rate": 1
   },
 
-  // Production route (uncomment when ready to deploy)
-  // "routes": [
-  //   { "pattern": "api.bayleaf.chat", "custom_domain": true }
-  // ],
+  "routes": [
+    { "pattern": "api.bayleaf.chat", "custom_domain": true }
+  ],
 
   // Environment variables (set via wrangler secret or dashboard)
   // These are placeholders - actual values should be set as secrets
