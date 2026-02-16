@@ -14,7 +14,12 @@ export function landingPage(showCampusPass: boolean, recommendedModel: string): 
       <p>No API key needed, or use <code>campus</code> as your key.</p>
       ${recommendedModelHint(recommendedModel)}
     </div>
-  ` : '';
+  ` : `
+    <div class="card" style="background: #f0f4ff; border-color: #4a7abf;">
+      <h3>On Campus?</h3>
+      <p>When you're on the UCSC network, you can use the API instantly — no sign-in or API key required. Just connect to campus Wi-Fi and visit this page again.</p>
+    </div>
+  `;
 
   return baseLayout('Welcome', `
     <div class="card">
