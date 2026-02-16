@@ -2,7 +2,7 @@
 
 Cloudflare Worker built with **Hono**: OIDC auth (UCSC Google), OpenRouter key provisioning, LLM proxy with system prompt injection, Campus Pass (IP-based auth).
 
-**Architecture**: Multi-file TypeScript under `src/`, stateless (no DB - state via OpenRouter API). Hono handles routing, CORS, and response helpers. Bundled by Wrangler.
+**Architecture**: Multi-file TypeScript under `src/`, D1 for proxy key mappings. Hono handles routing, CORS, and response helpers. Bundled by Wrangler.
 
 ## Commands
 
@@ -61,3 +61,4 @@ src/
 - Don't add runtime dependencies (beyond hono)
 - Don't use Node.js-specific APIs
 - Don't throw - return null/error responses
+- Don't display API keys in plaintext (no `type="text"` inputs, no visible tokens in the page). Users may screen-share while demoing the system. Always use `type="password"` inputs and "Copy" buttons that write to the clipboard. The key value should never be visible on screen.

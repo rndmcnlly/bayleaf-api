@@ -13,7 +13,8 @@ export function getKeyName(email: string, template: string): string {
 }
 
 /**
- * List all keys and find one by name
+ * List all keys and find one by name.
+ * Used during migration to adopt pre-existing OR keys.
  */
 export async function findKeyByName(name: string, env: Bindings): Promise<OpenRouterKey | null> {
   let offset = 0;
@@ -44,12 +45,27 @@ export async function findKeyByName(name: string, env: Bindings): Promise<OpenRo
 }
 
 /**
- * Create a new API key
+ * Look up a specific key by its hash.
+ * Used for state reconciliation (checking if an OR key is still alive).
+ */
+export async function findKeyByHash(hash: string, env: Bindings): Promise<OpenRouterKey | null> {
+  const response = await fetch(`${OPENROUTER_API}/keys/${hash}`, {
+    headers: {
+      'Authorization': `Bearer ${env.OPENROUTER_PROVISIONING_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const result = await response.json() as { data: OpenRouterKey };
+  return result.data ?? null;
+}
+
+/**
+ * Create a new API key (no expiry -- the OR key lives forever).
  */
 export async function createKey(name: string, env: Bindings): Promise<OpenRouterKeyCreated | null> {
-  const expiryDays = parseInt(env.KEY_EXPIRY_DAYS) || 30;
-  const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
-  
   const response = await fetch(`${OPENROUTER_API}/keys`, {
     method: 'POST',
     headers: {
@@ -60,7 +76,6 @@ export async function createKey(name: string, env: Bindings): Promise<OpenRouter
       name,
       limit: parseFloat(env.SPENDING_LIMIT_DOLLARS) || 1.0,
       limit_reset: env.SPENDING_LIMIT_RESET || 'daily',
-      expires_at: expiresAt,
     }),
   });
   

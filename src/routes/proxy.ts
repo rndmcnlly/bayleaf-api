@@ -2,12 +2,13 @@
  * API Proxy Route Handler
  * 
  * Proxies requests to OpenRouter with system prompt injection.
+ * Resolves sk-bayleaf- proxy tokens to real OR keys via D1.
  * Supports Campus Pass for on-campus users.
  */
 
 import { Hono } from 'hono';
-import type { AppEnv } from '../types';
-import { OPENROUTER_API } from '../constants';
+import type { AppEnv, UserKeyRow } from '../types';
+import { OPENROUTER_API, BAYLEAF_TOKEN_PREFIX } from '../constants';
 import { isCampusPassEligible } from '../utils/ip';
 
 export const proxyRoutes = new Hono<AppEnv>();
@@ -34,6 +35,7 @@ proxyRoutes.all('/*', async (c) => {
   const providedKey = authHeader?.replace(/^Bearer\s+/i, '').trim();
   
   let isCampusMode = false;
+  let userEmail: string | null = null;
   
   // If no key, empty key, or "campus" token, check for campus access
   if (!providedKey || providedKey === '' || providedKey.toLowerCase() === 'campus') {
@@ -46,12 +48,32 @@ proxyRoutes.all('/*', async (c) => {
         message: 'API key required. On-campus users can omit the key or use "campus". Visit https://api.bayleaf.chat/ for a free personal key.',
       }, 401);
     }
+  } else if (providedKey.startsWith(BAYLEAF_TOKEN_PREFIX)) {
+    // Proxy key -- resolve via D1
+    const row = await c.env.DB.prepare(
+      'SELECT * FROM user_keys WHERE bayleaf_token = ? AND revoked = 0',
+    ).bind(providedKey).first<UserKeyRow>();
+
+    if (!row) {
+      return c.json({
+        error: 'Unauthorized',
+        message: 'Invalid or revoked API key.',
+      }, 401);
+    }
+
+    // Substitute the real OR key
+    headers.set('Authorization', `Bearer ${row.or_key_secret}`);
+    userEmail = row.email;
   }
+  // else: raw sk-or- key passes through as-is (backwards compat during migration)
   
-  // For chat completions, inject system prompt prefix(es)
+  // For chat completions, inject system prompt prefix(es) and user field
   if (path === '/chat/completions' && c.req.method === 'POST') {
     try {
-      const body = await c.req.json() as { messages?: Array<{ role: string; content: string }> };
+      const body = await c.req.json() as {
+        messages?: Array<{ role: string; content: string }>;
+        user?: string;
+      };
       
       if (body.messages && Array.isArray(body.messages)) {
         // Build the full system prefix
@@ -74,6 +96,13 @@ proxyRoutes.all('/*', async (c) => {
             content: systemPrefix,
           });
         }
+      }
+
+      // Inject user field for OR per-user analytics
+      if (userEmail && !body.user) {
+        body.user = userEmail;
+      } else if (isCampusMode && !body.user) {
+        body.user = 'campus-anonymous';
       }
       
       // Make the proxied request with modified body

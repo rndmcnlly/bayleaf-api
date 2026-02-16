@@ -4,11 +4,13 @@
 
 /** Cloudflare Worker bindings (env vars + secrets) */
 export interface Bindings {
+  // D1 database
+  DB: D1Database;
+
   // Public configuration
   SPENDING_LIMIT_DOLLARS: string;
   SPENDING_LIMIT_RESET: string;
   KEY_NAME_TEMPLATE: string;
-  KEY_EXPIRY_DAYS: string;
   ALLOWED_EMAIL_DOMAIN: string;
   SYSTEM_PROMPT_PREFIX: string;
   RECOMMENDED_MODEL: string;       // Model slug shown in dashboard examples
@@ -55,6 +57,16 @@ export interface OpenRouterKeyCreated extends OpenRouterKey {
 /** Hono context variables (set by middleware, read by handlers) */
 export interface Variables {
   session: Session;
+}
+
+/** Row from the user_keys D1 table */
+export interface UserKeyRow {
+  email: string;
+  bayleaf_token: string;
+  or_key_hash: string;
+  or_key_secret: string;
+  revoked: number;           // 0 = active, 1 = revoked
+  created_at: string;
 }
 
 /** Hono app environment type */

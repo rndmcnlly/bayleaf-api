@@ -12,3 +12,5 @@ export const OPENROUTER_API = 'https://openrouter.ai/api/v1';
 
 export const SESSION_COOKIE = 'bayleaf_session';
 export const SESSION_DURATION_HOURS = 24;
+
+export const BAYLEAF_TOKEN_PREFIX = 'sk-bayleaf-';

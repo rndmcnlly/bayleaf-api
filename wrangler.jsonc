@@ -15,13 +15,23 @@
     { "pattern": "api.bayleaf.chat", "custom_domain": true }
   ],
 
+  // D1 database for proxy key mappings
+  // Create with: wrangler d1 create bayleaf-keys
+  // Then run migration: wrangler d1 migrations apply bayleaf-keys
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bayleaf-keys",
+      "database_id": "e249d6a6-41cf-4ab7-93d6-b677ac95b524"
+    }
+  ],
+
   // Environment variables (set via wrangler secret or dashboard)
   // These are placeholders - actual values should be set as secrets
   "vars": {
     "SPENDING_LIMIT_DOLLARS": "1.0",
     "SPENDING_LIMIT_RESET": "daily",
     "KEY_NAME_TEMPLATE": "BayLeaf API for $email",
-    "KEY_EXPIRY_DAYS": "30",
     "ALLOWED_EMAIL_DOMAIN": "ucsc.edu",
     "SYSTEM_PROMPT_PREFIX": "You are accessing the BayLeaf API (https://api.bayleaf.chat/),  UC Santa Cruz's locally-operated AI service. Help users develop capability they can carry forward—into their own work and into collaboration with others. Make reasoning visible. Teach what generalizes. Conversations are private and never used for training.",
     
