@@ -2,7 +2,8 @@
  * BayLeaf API Type Definitions
  */
 
-export interface Env {
+/** Cloudflare Worker bindings (env vars + secrets) */
+export interface Bindings {
   // Public configuration
   SPENDING_LIMIT_DOLLARS: string;
   SPENDING_LIMIT_RESET: string;
@@ -49,4 +50,15 @@ export interface OpenRouterKey {
 
 export interface OpenRouterKeyCreated extends OpenRouterKey {
   key: string; // The actual API key, only available at creation time
+}
+
+/** Hono context variables (set by middleware, read by handlers) */
+export interface Variables {
+  session: Session;
+}
+
+/** Hono app environment type */
+export type AppEnv = {
+  Bindings: Bindings;
+  Variables: Variables;
 }

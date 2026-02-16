@@ -2,7 +2,7 @@
  * OpenRouter API Helpers
  */
 
-import type { Env, OpenRouterKey, OpenRouterKeyCreated } from './types';
+import type { Bindings, OpenRouterKey, OpenRouterKeyCreated } from './types';
 import { OPENROUTER_API } from './constants';
 
 /**
@@ -15,7 +15,7 @@ export function getKeyName(email: string, template: string): string {
 /**
  * List all keys and find one by name
  */
-export async function findKeyByName(name: string, env: Env): Promise<OpenRouterKey | null> {
+export async function findKeyByName(name: string, env: Bindings): Promise<OpenRouterKey | null> {
   let offset = 0;
   const limit = 100;
   
@@ -46,7 +46,7 @@ export async function findKeyByName(name: string, env: Env): Promise<OpenRouterK
 /**
  * Create a new API key
  */
-export async function createKey(name: string, env: Env): Promise<OpenRouterKeyCreated | null> {
+export async function createKey(name: string, env: Bindings): Promise<OpenRouterKeyCreated | null> {
   const expiryDays = parseInt(env.KEY_EXPIRY_DAYS) || 30;
   const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
   
@@ -81,7 +81,7 @@ export async function createKey(name: string, env: Env): Promise<OpenRouterKeyCr
 /**
  * Delete an API key by hash
  */
-export async function deleteKey(hash: string, env: Env): Promise<boolean> {
+export async function deleteKey(hash: string, env: Bindings): Promise<boolean> {
   const response = await fetch(`${OPENROUTER_API}/keys/${hash}`, {
     method: 'DELETE',
     headers: {

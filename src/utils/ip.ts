@@ -2,7 +2,7 @@
  * IP Range Utilities (Campus Pass)
  */
 
-import type { Env } from '../types';
+import type { Bindings } from '../types';
 
 /**
  * Convert an IPv4 address to a BigInt
@@ -104,7 +104,7 @@ export function getClientIP(request: Request): string {
 /**
  * Check if request qualifies for Campus Pass
  */
-export function isCampusPassEligible(request: Request, env: Env): boolean {
+export function isCampusPassEligible(request: Request, env: Bindings): boolean {
   if (!env.CAMPUS_IP_RANGES || !env.CAMPUS_POOL_KEY) return false;
   return isOnCampus(getClientIP(request), env.CAMPUS_IP_RANGES);
 }

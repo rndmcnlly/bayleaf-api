@@ -2,9 +2,12 @@
  * Session Token Utilities
  * 
  * HMAC-SHA256 signed session tokens using Web Crypto API.
+ * Uses hono/cookie for cookie get/set.
  */
 
-import type { Env, Session } from '../types';
+import type { Context } from 'hono';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import type { AppEnv, Session } from '../types';
 import { SESSION_COOKIE, SESSION_DURATION_HOURS } from '../constants';
 
 /**
@@ -28,7 +31,7 @@ export async function createSessionToken(session: Session, secret: string): Prom
 /**
  * Verify and decode a session token
  */
-export async function verifySessionToken(token: string, secret: string): Promise<Session | null> {
+async function verifySessionToken(token: string, secret: string): Promise<Session | null> {
   try {
     const [payloadB64, sigB64] = token.split('.');
     if (!payloadB64 || !sigB64) return null;
@@ -58,30 +61,31 @@ export async function verifySessionToken(token: string, secret: string): Promise
 }
 
 /**
- * Get session from request cookies
+ * Get session from request cookie
  */
-export async function getSession(request: Request, env: Env): Promise<Session | null> {
-  const cookie = request.headers.get('Cookie');
-  if (!cookie) return null;
-  
-  const match = cookie.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
-  if (!match) return null;
-  
-  return verifySessionToken(match[1], env.OIDC_CLIENT_SECRET);
+export async function getSession(c: Context<AppEnv>): Promise<Session | null> {
+  const token = getCookie(c, SESSION_COOKIE);
+  if (!token) return null;
+  return verifySessionToken(token, c.env.OIDC_CLIENT_SECRET);
 }
 
 /**
- * Create a Set-Cookie header for the session
+ * Set the session cookie on a response
  */
-export function sessionCookie(token: string, hostname: string): string {
-  const secure = hostname !== 'localhost';
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DURATION_HOURS * 3600}${secure ? '; Secure' : ''}`;
+export function setSessionCookie(c: Context<AppEnv>, token: string): void {
+  const secure = new URL(c.req.url).hostname !== 'localhost';
+  setCookie(c, SESSION_COOKIE, token, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax',
+    maxAge: SESSION_DURATION_HOURS * 3600,
+    secure,
+  });
 }
 
 /**
- * Create a logout cookie (expires immediately)
+ * Clear the session cookie (logout)
  */
-export function logoutCookie(hostname: string): string {
-  const secure = hostname !== 'localhost';
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
+export function clearSessionCookie(c: Context<AppEnv>): void {
+  deleteCookie(c, SESSION_COOKIE, { path: '/' });
 }
