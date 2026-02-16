@@ -28,7 +28,7 @@ export interface Session {
   email: string;
   name: string;
   picture?: string;
-  exp: number;
+  exp: number; // JWT standard: seconds since epoch
 }
 
 export interface OpenRouterKey {

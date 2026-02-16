@@ -1,78 +1,34 @@
 /**
  * Session Token Utilities
  * 
- * HMAC-SHA256 signed session tokens using Web Crypto API.
- * Uses hono/cookie for cookie get/set.
+ * JWT sessions (HS256) via hono/jwt, cookies via hono/cookie.
  */
 
 import type { Context } from 'hono';
+import { sign, verify } from 'hono/jwt';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { AppEnv, Session } from '../types';
 import { SESSION_COOKIE, SESSION_DURATION_HOURS } from '../constants';
 
 /**
- * Create a signed session token (simple HMAC-based)
- */
-export async function createSessionToken(session: Session, secret: string): Promise<string> {
-  const payload = JSON.stringify(session);
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
-  const sigBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
-  return btoa(payload) + '.' + sigBase64;
-}
-
-/**
- * Verify and decode a session token
- */
-async function verifySessionToken(token: string, secret: string): Promise<Session | null> {
-  try {
-    const [payloadB64, sigB64] = token.split('.');
-    if (!payloadB64 || !sigB64) return null;
-    
-    const payload = atob(payloadB64);
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-    
-    const signature = Uint8Array.from(atob(sigB64), c => c.charCodeAt(0));
-    const valid = await crypto.subtle.verify('HMAC', key, signature, encoder.encode(payload));
-    
-    if (!valid) return null;
-    
-    const session = JSON.parse(payload) as Session;
-    if (session.exp < Date.now()) return null;
-    
-    return session;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Get session from request cookie
+ * Get session from request cookie (verify + decode JWT)
  */
 export async function getSession(c: Context<AppEnv>): Promise<Session | null> {
   const token = getCookie(c, SESSION_COOKIE);
   if (!token) return null;
-  return verifySessionToken(token, c.env.OIDC_CLIENT_SECRET);
+  try {
+    return await verify(token, c.env.OIDC_CLIENT_SECRET, 'HS256') as unknown as Session;
+  } catch {
+    return null; // expired, invalid signature, etc.
+  }
 }
 
 /**
- * Set the session cookie on a response
+ * Create a session JWT and set it as a cookie
  */
-export function setSessionCookie(c: Context<AppEnv>, token: string): void {
+export async function setSessionCookie(c: Context<AppEnv>, session: Omit<Session, 'exp'>): Promise<void> {
+  const exp = Math.floor(Date.now() / 1000) + SESSION_DURATION_HOURS * 3600;
+  const token = await sign({ ...session, exp }, c.env.OIDC_CLIENT_SECRET);
   const secure = new URL(c.req.url).hostname !== 'localhost';
   setCookie(c, SESSION_COOKIE, token, {
     path: '/',

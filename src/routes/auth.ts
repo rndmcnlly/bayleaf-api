@@ -7,8 +7,8 @@
 import { Hono } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import type { AppEnv } from '../types';
-import { GOOGLE_OIDC, SESSION_DURATION_HOURS } from '../constants';
-import { createSessionToken, setSessionCookie, clearSessionCookie } from '../utils/session';
+import { GOOGLE_OIDC } from '../constants';
+import { setSessionCookie, clearSessionCookie } from '../utils/session';
 import { errorPage } from '../templates/layout';
 
 export const authRoutes = new Hono<AppEnv>();
@@ -92,14 +92,11 @@ authRoutes.get('/callback', async (c) => {
   }
   
   // Create session
-  const token = await createSessionToken({
+  await setSessionCookie(c, {
     email: user.email,
     name: user.name,
     picture: user.picture,
-    exp: Date.now() + SESSION_DURATION_HOURS * 60 * 60 * 1000,
-  }, c.env.OIDC_CLIENT_SECRET);
-  
-  setSessionCookie(c, token);
+  });
   return c.redirect('/dashboard', 302);
 });
 
