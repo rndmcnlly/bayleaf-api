@@ -135,6 +135,21 @@ export function recommendedModelHint(model: string): string {
   return `<p>If you aren't sure which model to use, we recommend <code><a href="${modelUrl}" target="_blank">${model}</a></code> as a reasonable default.</p>`;
 }
 
+export function opencodeOnboardingSection(recommendedModel: string): string {
+  return `
+    <div class="card" style="background: #f5f0ff; border-color: #7c3aed;">
+      <h3>Use BayLeaf with OpenCode</h3>
+      <p><a href="https://opencode.ai/" target="_blank">OpenCode</a> is an open-source AI coding agent that runs in your terminal. Connect it to BayLeaf for free LLM-powered coding assistance.</p>
+      <ol>
+        <li><a href="https://opencode.ai/docs" target="_blank">Install OpenCode</a></li>
+        <li>Launch <code>opencode</code> and ask it:<br>
+          <em>Help me set up BayLeaf as a provider. Load the skill from <a href="SKILL.md" target="_blank">https://api.bayleaf.chat/SKILL.md</a></em>
+        </li>
+      </ol>
+    </div>
+  `;
+}
+
 export function errorPage(title: string, message: string): string {
   return baseLayout(title, `
     <div class="error">

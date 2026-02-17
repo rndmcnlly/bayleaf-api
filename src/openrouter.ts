@@ -94,6 +94,19 @@ export async function createKey(name: string, env: Bindings): Promise<OpenRouter
 }
 
 /**
+ * Look up a model's display name from the OpenRouter public models list.
+ * Returns null if the model isn't found or the request fails.
+ */
+export async function getModelName(modelId: string): Promise<string | null> {
+  const response = await fetch(`${OPENROUTER_API}/models`);
+  if (!response.ok) return null;
+
+  const result = await response.json() as { data: { id: string; name: string }[] };
+  const model = result.data.find((m) => m.id === modelId);
+  return model?.name ?? null;
+}
+
+/**
  * Delete an API key by hash
  */
 export async function deleteKey(hash: string, env: Bindings): Promise<boolean> {

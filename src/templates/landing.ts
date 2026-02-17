@@ -2,7 +2,7 @@
  * Landing Page Template
  */
 
-import { baseLayout, recommendedModelHint } from './layout';
+import { baseLayout, recommendedModelHint, opencodeOnboardingSection } from './layout';
 
 export function landingPage(showCampusPass: boolean, recommendedModel: string): string {
   const campusPassSection = showCampusPass ? `
@@ -28,5 +28,6 @@ export function landingPage(showCampusPass: boolean, recommendedModel: string): 
       <p><a href="/login" class="btn">Sign in with UCSC Google</a></p>
     </div>
     ${campusPassSection}
+    ${opencodeOnboardingSection(recommendedModel)}
   `);
 }

@@ -17,6 +17,7 @@ import { authRoutes } from './routes/auth';
 import { dashboardRoutes } from './routes/dashboard';
 import { keyRoutes } from './routes/key';
 import { proxyRoutes } from './routes/proxy';
+import { opencodeRoutes } from './routes/opencode';
 
 const app = new Hono<AppEnv>();
 
@@ -35,6 +36,7 @@ app.all('/api/v1/*', (c) => c.redirect(c.req.url.replace('/api/v1', '/v1'), 301)
 app.route('/v1', proxyRoutes);
 app.route('/', authRoutes);
 app.route('/', keyRoutes);
+app.route('/', opencodeRoutes);
 app.route('/', dashboardRoutes);
 
 // 404 fallback

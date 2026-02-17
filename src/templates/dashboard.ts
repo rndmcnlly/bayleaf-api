@@ -3,7 +3,7 @@
  */
 
 import type { Session, UserKeyRow, OpenRouterKey } from '../types';
-import { baseLayout, recommendedModelHint } from './layout';
+import { baseLayout, recommendedModelHint, opencodeOnboardingSection } from './layout';
 
 export function dashboardPage(
   session: Session,
@@ -175,6 +175,7 @@ export function dashboardPage(
     <p>${greeting} | <a href="/logout">Sign out</a></p>
     ${keySection}
     ${usageGuide}
+    ${opencodeOnboardingSection(recommendedModel)}
     ${scripts}
   `);
 }
