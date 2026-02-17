@@ -70,6 +70,8 @@ opencodeRoutes.get('/SKILL.md', async (c) => {
     '}',
     fence,
     '',
+    '**Restart OpenCode** if you made any changes to the config file.',
+    '',
     '### 2. Store the API key',
     '',
     `Run the ${bt}/connect${bt} command in OpenCode and select **BayLeaf API** (under the **Other** header).`,
