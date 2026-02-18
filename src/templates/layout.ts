@@ -132,7 +132,7 @@ export function baseLayout(title: string, content: string): string {
 
 export function recommendedModelHint(model: string): string {
   const modelUrl = `https://openrouter.ai/${model}`;
-  return `<p>If you aren't sure which model to use, we recommend <code><a href="${modelUrl}" target="_blank">${model}</a></code> as a reasonable default.</p>`;
+  return `<p>If you aren't sure which model to use, we recommend <code><a href="${modelUrl}" target="_blank">${model}</a></code> as a reasonable default. Browse all models at <a href="https://openrouter.ai/models" target="_blank">openrouter.ai/models</a> — only zero data retention (ZDR) providers are available through BayLeaf API.</p>`;
 }
 
 export function opencodeOnboardingSection(recommendedModel: string): string {
