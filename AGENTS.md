@@ -21,6 +21,7 @@ src/
   constants.ts          GOOGLE_OIDC, OPENROUTER_API, cookie config
   openrouter.ts         OpenRouter API helpers (findKeyByName, createKey, deleteKey)
   utils/
+    auth.ts             resolveAuth(): shared auth for proxy routes (Campus Pass, Bayleaf token, raw key)
     ip.ts               IP range parsing, campus pass checks
     session.ts          HMAC session tokens, cookie helpers
   templates/
@@ -31,7 +32,7 @@ src/
     auth.ts             authRoutes: /login, /callback, /logout
     dashboard.ts        dashboardRoutes: /, /dashboard
     key.ts              keyRoutes: GET|POST|DELETE /key
-    proxy.ts            proxyRoutes: /v1/* (mounted as sub-app)
+    proxy.ts            proxyRoutes: POST /responses, /v1/* catch-all
 ```
 
 ## Code Style
@@ -51,9 +52,10 @@ src/
 ## Routes
 
 ```
-/            Landing    /login      OIDC start    /callback   OIDC callback
-/logout      Clear      /dashboard  User UI       /key        GET|POST|DELETE
-/v1/*        Proxy
+/                  Landing       /login         OIDC start      /callback   OIDC callback
+/logout            Clear         /dashboard     User UI         /key        GET|POST|DELETE
+/v1/responses      Responses API proxy (system prompt via instructions field)
+/v1/*              Chat/general proxy (system prompt via system message)
 ```
 
 ## Don'ts

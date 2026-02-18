@@ -1,121 +1,141 @@
 /**
- * API Proxy Route Handler
+ * API Proxy Route Handlers
  * 
  * Proxies requests to OpenRouter with system prompt injection.
+ * Handles both Chat Completions (/v1/chat/completions) and
+ * Responses API (/v1/responses) with format-appropriate injection.
  * Resolves sk-bayleaf- proxy tokens to real OR keys via D1.
  * Supports Campus Pass for on-campus users.
+ *
+ * Note: this sub-app is mounted at /v1, so paths are relative to /v1.
  */
 
 import { Hono } from 'hono';
-import type { AppEnv, UserKeyRow } from '../types';
-import { OPENROUTER_API, BAYLEAF_TOKEN_PREFIX } from '../constants';
-import { isCampusPassEligible } from '../utils/ip';
+import type { AppEnv } from '../types';
+import { OPENROUTER_API } from '../constants';
+import { resolveAuth, type AuthResult } from '../utils/auth';
 
 export const proxyRoutes = new Hono<AppEnv>();
 
+/** Build the system prompt prefix, adding campus suffix when applicable. */
+function buildSystemPrefix(env: AppEnv['Bindings'], isCampusMode: boolean): string {
+  let prefix = env.SYSTEM_PROMPT_PREFIX;
+  if (isCampusMode && env.CAMPUS_SYSTEM_PREFIX) {
+    prefix += '\n\n' + env.CAMPUS_SYSTEM_PREFIX;
+  }
+  return prefix;
+}
+
+/** Inject the `user` field for OR per-user analytics. */
+function injectUser(body: { user?: string }, auth: AuthResult): void {
+  if (body.user) return;
+  if (auth.userEmail) {
+    body.user = auth.userEmail;
+  } else if (auth.isCampusMode) {
+    body.user = 'campus-anonymous';
+  }
+}
+
+/** Forward a modified JSON body to OpenRouter and return the response. */
+async function forwardJson(
+  url: string,
+  authorization: string,
+  body: unknown,
+): Promise<Response> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': authorization,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.set('Access-Control-Allow-Origin', '*');
+
+  return new Response(response.body, {
+    status: response.status,
+    headers: responseHeaders,
+  });
+}
+
 /**
- * /v1/* - Proxy to OpenRouter with system prompt injection
- * Supports Campus Pass: on-campus users can access without a personal API key
- *
- * Note: this sub-app is mounted at /v1, so c.req.path is relative to /v1.
+ * POST /responses — Responses API proxy
+ * Injects system prompt via the `instructions` field.
+ */
+proxyRoutes.post('/responses', async (c) => {
+  const auth = await resolveAuth(c);
+  if (auth instanceof Response) return auth;
+
+  let body: { instructions?: string; user?: string; [k: string]: unknown };
+  try {
+    body = await c.req.json() as typeof body;
+  } catch {
+    return c.json({ error: { message: 'Invalid JSON in request body.', code: 400 } }, 400);
+  }
+
+  // Inject system prompt via `instructions`
+  const systemPrefix = buildSystemPrefix(c.env, auth.isCampusMode);
+  body.instructions = body.instructions
+    ? systemPrefix + '\n\n' + body.instructions
+    : systemPrefix;
+
+  injectUser(body, auth);
+
+  return forwardJson(`${OPENROUTER_API}/responses`, auth.authorization, body);
+});
+
+/**
+ * /* catch-all — Chat Completions & general proxy
+ * Injects system prompt via a system message for /chat/completions.
+ * All other paths are forwarded unmodified.
  */
 proxyRoutes.all('/*', async (c) => {
   const url = new URL(c.req.url);
   const path = url.pathname.replace('/v1', '');
-  
-  // Build the OpenRouter URL
   const openRouterUrl = `${OPENROUTER_API}${path}${url.search}`;
-  
+
   // Clone headers, removing host
   const headers = new Headers(c.req.raw.headers);
   headers.delete('host');
-  
-  // Check for Campus Pass mode
-  const authHeader = c.req.header('Authorization');
-  const providedKey = authHeader?.replace(/^Bearer\s+/i, '').trim();
-  
-  let isCampusMode = false;
-  let userEmail: string | null = null;
-  
-  // If no key, empty key, or "campus" token, check for campus access
-  if (!providedKey || providedKey === '' || providedKey.toLowerCase() === 'campus') {
-    if (isCampusPassEligible(c.req.raw, c.env)) {
-      isCampusMode = true;
-      headers.set('Authorization', `Bearer ${c.env.CAMPUS_POOL_KEY}`);
-    } else {
-      return c.json({
-        error: 'Unauthorized',
-        message: 'API key required. On-campus users can omit the key or use "campus". Visit https://api.bayleaf.chat/ for a free personal key.',
-      }, 401);
-    }
-  } else if (providedKey.startsWith(BAYLEAF_TOKEN_PREFIX)) {
-    // Proxy key -- resolve via D1
-    const row = await c.env.DB.prepare(
-      'SELECT * FROM user_keys WHERE bayleaf_token = ? AND revoked = 0',
-    ).bind(providedKey).first<UserKeyRow>();
 
-    if (!row) {
-      return c.json({
-        error: 'Unauthorized',
-        message: 'Invalid or revoked API key.',
-      }, 401);
-    }
+  const auth = await resolveAuth(c);
+  if (auth instanceof Response) return auth;
 
-    // Substitute the real OR key
-    headers.set('Authorization', `Bearer ${row.or_key_secret}`);
-    userEmail = row.email;
-  }
-  // else: raw sk-or- key passes through as-is (backwards compat during migration)
-  
-  // For chat completions, inject system prompt prefix(es) and user field
+  headers.set('Authorization', auth.authorization);
+
+  // For chat completions, inject system prompt and user field
   if (path === '/chat/completions' && c.req.method === 'POST') {
     try {
       const body = await c.req.json() as {
         messages?: Array<{ role: string; content: string }>;
         user?: string;
       };
-      
+
       if (body.messages && Array.isArray(body.messages)) {
-        // Build the full system prefix
-        let systemPrefix = c.env.SYSTEM_PROMPT_PREFIX;
-        if (isCampusMode && c.env.CAMPUS_SYSTEM_PREFIX) {
-          systemPrefix += '\n\n' + c.env.CAMPUS_SYSTEM_PREFIX;
-        }
-        
-        // Find existing system message or create one
+        const systemPrefix = buildSystemPrefix(c.env, auth.isCampusMode);
         const systemIndex = body.messages.findIndex(m => m.role === 'system');
-        
+
         if (systemIndex >= 0) {
-          // Prepend to existing system message
-          body.messages[systemIndex].content = 
+          body.messages[systemIndex].content =
             systemPrefix + '\n\n' + body.messages[systemIndex].content;
         } else {
-          // Insert system message at the beginning
-          body.messages.unshift({
-            role: 'system',
-            content: systemPrefix,
-          });
+          body.messages.unshift({ role: 'system', content: systemPrefix });
         }
       }
 
-      // Inject user field for OR per-user analytics
-      if (userEmail && !body.user) {
-        body.user = userEmail;
-      } else if (isCampusMode && !body.user) {
-        body.user = 'campus-anonymous';
-      }
-      
-      // Make the proxied request with modified body
+      injectUser(body, auth);
+
       const response = await fetch(openRouterUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
       });
-      
-      // Return response with CORS headers
+
       const responseHeaders = new Headers(response.headers);
       responseHeaders.set('Access-Control-Allow-Origin', '*');
-      
+
       return new Response(response.body, {
         status: response.status,
         headers: responseHeaders,
@@ -125,17 +145,17 @@ proxyRoutes.all('/*', async (c) => {
       console.error('Failed to parse request body:', e);
     }
   }
-  
+
   // For all other requests, simple proxy
   const response = await fetch(openRouterUrl, {
     method: c.req.method,
     headers,
     body: c.req.method !== 'GET' && c.req.method !== 'HEAD' ? c.req.raw.body : undefined,
   });
-  
+
   const responseHeaders = new Headers(response.headers);
   responseHeaders.set('Access-Control-Allow-Origin', '*');
-  
+
   return new Response(response.body, {
     status: response.status,
     headers: responseHeaders,

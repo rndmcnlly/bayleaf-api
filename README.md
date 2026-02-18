@@ -6,7 +6,7 @@ API key provisioning and LLM inference proxy for UC Santa Cruz, part of the [Bay
 
 - **OIDC Authentication**: Sign in with UCSC Google accounts
 - **API Key Provisioning**: Automatic OpenRouter key management (one key per user)
-- **Inference Proxy**: OpenAI-compatible endpoint with campus-specific system prompt injection
+- **Inference Proxy**: OpenAI-compatible Chat Completions and Responses API endpoints with campus-specific system prompt injection
 - **Self-Service Dashboard**: Create, view (statistics), and revoke API keys
 - **Campus Pass**: On-campus users can access the API without authentication
 
@@ -119,13 +119,18 @@ Campus Pass allows users on the UC Santa Cruz campus network to access the infer
 On-campus users can access the API without any authentication:
 
 ```bash
-# No Authorization header needed on campus
-curl https://api.bayleaf.chat/v1/chat/completions \\
+# Chat Completions — no Authorization header needed on campus
+curl https://api.bayleaf.chat/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model": "deepseek/deepseek-v3.2", "messages": [{"role": "user", "content": "Hello!"}]}'
 
+# Responses API
+curl https://api.bayleaf.chat/v1/responses \
+  -H "Content-Type: application/json" \
+  -d '{"model": "deepseek/deepseek-v3.2", "input": "Hello!"}'
+
 # Or explicitly use "campus" as the key
-curl https://api.bayleaf.chat/api/v1/chat/completions \
+curl https://api.bayleaf.chat/v1/chat/completions \
   -H "Authorization: Bearer campus" \
   -H "Content-Type: application/json" \
   -d '{"model": "deepseek/deepseek-v3.2", "messages": [{"role": "user", "content": "Hello!"}]}'
@@ -152,7 +157,8 @@ Off-campus users will receive a 401 error directing them to get a personal key a
 
 | Endpoint | Description |
 |----------|-------------|
-| `/v1/chat/completions` | Chat completions (system prompt injected) |
+| `/v1/responses` | Responses API (system prompt injected via `instructions` field) |
+| `/v1/chat/completions` | Chat completions (system prompt injected via system message) |
 | `/v1/completions` | Text completions |
 | `/v1/models` | List available models |
 | `/v1/*` | All other OpenRouter endpoints |
